@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -28,8 +28,35 @@ class SharableSpreadSheet
 
     private void InitializeLocks()    //initializing partitioned locks (2nd layer) based on current size and userimit
     {
-        int cellCount = rows * cols;
-        int lockCount = Math.Max(1, (userLimit > 0) ? Math.Min(userLimit + 1 - userLimit%2, cellCount + 1 - cellCount%2) : Math.Min(Environment.ProcessorCount * 2 + 1, cellCount + 1 - cellCount%2));     //calculating number of locks: At least 1, capped by userLimit and cell count for balance
+        int cellCount = rows * cols; //the amount of cells
+        int coreCount = Environment.ProcessorCount; //the amount of cores
+        int desiredLockCount; //final amonut of locks
+
+        if (userLimit > 0) //for positive userLimit
+        {
+            if (userLimit > 2 * coreCount && cellCount > 2 * coreCount) // if the cell count and user limit are higher than the amount of cores, use the following formula
+            {
+                int minUserCell = Math.Min(userLimit, cellCount);
+                desiredLockCount = ((minUserCell / coreCount) + coreCount) / coreCount;
+            }
+            else //else they are in relative range so just take the minimum between them
+            {
+                desiredLockCount = Math.Min(userLimit, cellCount);
+            }
+        }
+        else //else there is no limit on the amount of users, so take the minimum of
+        {
+            desiredLockCount = Math.Min(coreCount * 2 + 1, cellCount);
+        }
+
+
+        desiredLockCount = Math.Max(1, desiredLockCount); //making sure the lock count is at least 1
+
+
+        if (desiredLockCount % 2 == 0) //making sure its odd
+        {
+            desiredLockCount += 1;
+        }
         userLocks = new ReaderWriterLockSlim[lockCount]; //using a new number of locks, and initialising all to a readerwriter lock
         for (int i = 0; i < lockCount; i++)
             userLocks[i] = new ReaderWriterLockSlim();
@@ -38,8 +65,35 @@ class SharableSpreadSheet
 
     private void ResizeLocksIfNeeded()  // recalculating partition locks to adapt to new size, called under the globallock only
     {
-        int cellCount = rows * cols;
-        int desiredLockCount = Math.Max(1, (userLimit > 0) ? Math.Min(userLimit + 1 - userLimit%2, cellCount + 1 - cellCount%2) : Math.Min(Environment.ProcessorCount * 2 + 1, cellCount + 1 - cellCount%2)); //recalculating potential resizing
+        int cellCount = rows * cols; //the amount of cells
+        int coreCount = Environment.ProcessorCount; //the amount of cores
+        int desiredLockCount; //final amonut of locks
+
+        if (userLimit > 0) //for positive userLimit
+        {
+            if (userLimit > 2 * coreCount && cellCount > 2 * coreCount) // if the cell count and user limit are higher than the amount of cores, use the following formula
+            {
+                int minUserCell = Math.Min(userLimit, cellCount);
+                desiredLockCount = ((minUserCell / coreCount) + coreCount) / coreCount;
+            }
+            else //else they are in relative range so just take the minimum between them
+            {
+                desiredLockCount = Math.Min(userLimit, cellCount);
+            }
+        }
+        else //else there is no limit on the amount of users, so take the minimum of
+        {
+            desiredLockCount = Math.Min(coreCount * 2 + 1, cellCount);
+        }
+
+
+        desiredLockCount = Math.Max(1, desiredLockCount); //making sure the lock count is at least 1
+
+
+        if (desiredLockCount % 2 == 0) //making sure its odd
+        {
+            desiredLockCount += 1;
+        }
 
         if (desiredLockCount != userLocks.Length) //resising only if needed
         {
