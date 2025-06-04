@@ -57,8 +57,8 @@ class SharableSpreadSheet
         {
             desiredLockCount += 1;
         }
-        userLocks = new ReaderWriterLockSlim[lockCount]; //using a new number of locks, and initialising all to a readerwriter lock
-        for (int i = 0; i < lockCount; i++)
+        userLocks = new ReaderWriterLockSlim[desiredLockCount]; //using a new number of locks, and initialising all to a readerwriter lock
+        for (int i = 0; i < desiredLockCount; i++)
             userLocks[i] = new ReaderWriterLockSlim();
     }
 
