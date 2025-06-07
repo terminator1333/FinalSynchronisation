@@ -24,7 +24,23 @@ class SharableSpreadSheet
 
         InitializeLocks(); //initialising the locks using separate function
     }
-
+        private ReaderWriterLockSlim[] AcquireLocksInOrder(List<(int row, int col)> cells) //a method to get the correct locks in the correct order to avoid deadlock
+        {
+            var lockPairs = cells.Select(cell => new //creating the new array of locks according to the indexing 
+            {
+                Index = cell.row * cols + cell.col,
+                Lock = GetLockForCell(cell.row, cell.col)
+            })
+            .OrderBy(pair => pair.Index)
+            .ToList();
+        
+            var uniqueLocks = lockPairs.Select(p => p.Lock).Distinct().ToList(); //removing all locks which are not unique
+        
+            foreach (var l in uniqueLocks) //getting the write lock
+                l.EnterWriteLock();
+        
+            return uniqueLocks.ToArray(); //returning their array 
+        }
 
     private void InitializeLocks()    //initializing partitioned locks (2nd layer) based on current size and userimit
     {
@@ -259,27 +275,14 @@ public void exchangeRows(int row1, int row2)
         ValidateRow(row2);
         if (row1==row2) return; //if its the same row, exit
 
-        int totalCells = cols * 2; //the maximum amount of locks we will need
-        var locks = new ReaderWriterLockSlim[totalCells]; //new array to hold the acquired locks
-        var lockIndices = new int[totalCells]; //the lock indexes for each cell
-        for (int c = 0; c < cols; c++) //collecting all the needed locks to lock all the numbers
+    
+        var cells = new List<(int row, int col)>(); //list of all cells we need to lock
+        for (int c = 0; c < cols; c++)
         {
-            int idx1 =(row1*cols) + c; //index of the lock of the first cell
-            int idx2= (row2*cols) + c; //index of the lock of the second cell
-            lockIndices[2*c]= idx1;
-            lockIndices[(2*c)+1] = idx2;
-
-            locks[2*c] = GetLockForCell(row1, c); //getting the locks
-            locks[(2*c)+1] =GetLockForCell(row2, c);
+            cells.Add((row1, c)); //adding the cells
+            cells.Add((row2, c));
         }
-        Array.Sort(lockIndices, locks); //sorting by index
-
-         var uniqueLocks = locks.Distinct().ToList(); //removing duplicate locks
-        foreach (var l in uniqueLocks)
-        {
-            l.EnterWriteLock(); //geting the write lock for each one
-        }
-
+        var locks = AcquireLocksInOrder(cells); //getting all the cell locks using the needed method
         try
         {
 
@@ -293,9 +296,9 @@ public void exchangeRows(int row1, int row2)
         finally
         {
 
-            for (int i = uniqueLocks.Count - 1; i >= 0; i--)
+            for (int i = locks.Length - 1; i >= 0; i--)
             {
-                uniqueLocks[i].ExitWriteLock();//releasing all locks
+                locks[i].ExitWriteLock();//releasing all locks
             }
         }
     }
@@ -316,27 +319,14 @@ public void exchangeCols(int col1, int col2)
         ValidateCol(col2);
         if (col1==col2) return; //if its the same col, exit
 
-        int totalCells = rows * 2; //the maximum amount of locks we will need
-        var locks = new ReaderWriterLockSlim[totalCells]; //new array to hold the acquired locks
-        var lockIndices = new int[totalCells]; //the lock indexes for each cell
-        for (int c = 0; c < rows; c++) //collecting all the needed locks to lock all the numbers
+        var cells = new List<(int row, int col)>(); //getting all the needed cells
+        for (int r = 0; r < rows; r++)
         {
-            int idx1 = (c*cols) + col1; //index of the lock of the first cell
-            int idx2 = (c*cols) + col2; //index of the lock of the second cell
-            lockIndices[2*c]= idx1;
-            lockIndices[(2*c)+1] = idx2;
-
-            locks[2*c] = GetLockForCell(c, col1); //getting the locks
-            locks[(2*c)+1] =GetLockForCell(c, col2);
-        }
-        Array.Sort(lockIndices, locks); //sorting by index
-
-        var uniqueLocks = locks.Distinct().ToList(); //removing duplicate locks
-        foreach (var l in uniqueLocks)
-        {
-            l.EnterWriteLock(); //geting the write lock for each one
+            cells.Add((r, col1));
+            cells.Add((r, col2));
         }
 
+        var locks = AcquireLocksInOrder(cells); // get all locks in correct global order
         try
         {
             for (int c = 0; c < rows; c++)//swapping the data in the two cols
@@ -349,9 +339,9 @@ public void exchangeCols(int col1, int col2)
         finally
         {
 
-            for (int i = uniqueLocks.Count - 1; i >= 0; i--)
+            for (int i = locks.Length - 1; i >= 0; i--)
             {
-                uniqueLocks[i].ExitWriteLock();//releasing all locks
+                locks[i].ExitWriteLock();//releasing all locks
             }
         }
     }
