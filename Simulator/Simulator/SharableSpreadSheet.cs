@@ -252,7 +252,7 @@ public string getCell(int row, int col)
 
 public void exchangeRows(int row1, int row2)
 {
-    globalLock.EnterReadLock(); //getting the global read lock
+    globalLock.EnterWriteLock(); //getting the global write lock
     try
     {
         ValidateRow(row1); //making sure the numbers are fine
@@ -301,7 +301,7 @@ public void exchangeRows(int row1, int row2)
     }
     finally
     {
-        globalLock.ExitReadLock(); //releasing the global lock
+        globalLock.ExitWriteLock(); //releasing the global lock
     }
 }
 
@@ -309,7 +309,7 @@ public void exchangeRows(int row1, int row2)
 
 public void exchangeCols(int col1, int col2)
 {
-    globalLock.EnterReadLock(); //getting the global read lock
+   globalLock.EnterWriteLock(); //getting the global write lock
     try
     {
         ValidateCol(col1); //making sure the numbers are fine
@@ -357,7 +357,7 @@ public void exchangeCols(int col1, int col2)
     }
     finally
     {
-        globalLock.ExitReadLock(); //releasing the global lock
+        globalLock.ExitWriteLock(); //releasing the global lock
     }
 }
 
