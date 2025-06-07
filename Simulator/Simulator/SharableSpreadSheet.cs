@@ -274,16 +274,7 @@ public void exchangeRows(int row1, int row2)
         }
         Array.Sort(lockIndices, locks); //sorting by index
 
-        var uniqueLocks = new List<ReaderWriterLockSlim>(); //removing duplicate locks
-        ReaderWriterLockSlim prevLock = null;
-        foreach (var l in locks) //checking according to the previous lock as they are sorted
-        {
-            if (!ReferenceEquals(l, prevLock))
-            {
-                uniqueLocks.Add(l); //adding the current lock
-                prevLock=l;//updating the previous lock
-            }
-        }
+         var uniqueLocks = locks.Distinct().ToList(); //removing duplicate locks
         foreach (var l in uniqueLocks)
         {
             l.EnterWriteLock(); //geting the write lock for each one
@@ -340,16 +331,7 @@ public void exchangeCols(int col1, int col2)
         }
         Array.Sort(lockIndices, locks); //sorting by index
 
-        var uniqueLocks = new List<ReaderWriterLockSlim>(); //removing duplicate locks
-        ReaderWriterLockSlim prevLock = null;
-        foreach (var l in locks) //checking according to the previous lock as they are sorted
-        {
-            if (!ReferenceEquals(l, prevLock))
-            {
-                uniqueLocks.Add(l); //adding the current lock
-                prevLock=l;//updating the previous lock
-            }
-        }
+        var uniqueLocks = locks.Distinct().ToList(); //removing duplicate locks
         foreach (var l in uniqueLocks)
         {
             l.EnterWriteLock(); //geting the write lock for each one
@@ -357,7 +339,6 @@ public void exchangeCols(int col1, int col2)
 
         try
         {
-
             for (int c = 0; c < rows; c++)//swapping the data in the two cols
             {
                 string temp =data[c, col1]; //temp val to save the seen data before replacing
